@@ -13,8 +13,18 @@ public class Hospital {
     private Long id;
     private String name;
     private String location;
+    private String hospitalType;
 
-    public Hospital(String name, String location) {
+    public String getHospitalType() {
+        return hospitalType;
+    }
+
+    public void setHospitalType(String hospitalType) {
+        this.hospitalType = hospitalType;
+    }
+
+    public Hospital(String name, String location, String hospitalType) {
+        this.hospitalType = hospitalType;
         this.name = name;
         this.location = location;
     }

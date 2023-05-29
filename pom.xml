@@ -33,11 +33,13 @@
             <version>8.0.33</version>
         </dependency>
 
+        <!-- https://mvnrepository.com/artifact/org.apache.httpcomponents/httpclient -->
         <dependency>
             <groupId>org.apache.httpcomponents</groupId>
             <artifactId>httpclient</artifactId>
-            <scope>test</scope>
+            <version>4.5.13</version>
         </dependency>
+
 
         <!-- Maven -->
         <dependency>
