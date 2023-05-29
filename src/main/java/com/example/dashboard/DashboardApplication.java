@@ -8,6 +8,7 @@ import com.example.dashboard.repositories.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -19,6 +20,7 @@ import java.util.stream.Stream;
 
 @SpringBootApplication
 @RestController
+@CrossOrigin(origins = "http://localhost:4200")
 public class DashboardApplication {
     int randomNum = 0;
     @Autowired
@@ -162,5 +164,25 @@ public class DashboardApplication {
     public Map<String, Map<String, String>> births(@RequestParam("hospitalId") long id) {
         return new HashMap<>();
     }
+
+    @GetMapping("api/hospitals")
+    public List<Map<String, String>> hospitals () {
+        List<Map<String, String>> retVal = new ArrayList<>();
+        Iterable<Hospital> hospitals = hospitalRepository.findAll();
+        for (Hospital hospital: hospitals) {
+            Map<String, String> tempVal = new HashMap<>();
+            tempVal.put("hospitalName", hospital.getName());
+            tempVal.put("hospitalId", String.valueOf(hospital.getId()));
+            retVal.add(tempVal);
+        }
+
+        return retVal;
+    }
+
+    @GetMapping("api/shortages")
+    public String shortages(@RequestParam("month") int month, @RequestParam("day") int day, @RequestParam("year") int year, @RequestParam("drug-id") int drug) {
+        return "";
+    }
+
 }
 
