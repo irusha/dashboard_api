@@ -11,36 +11,18 @@ public class MedicineUsage {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private int medicineId;
-    private int typicalStock;
-    private int hospitalId;
+    private long medicineId;
+    private long hospitalId;
     private boolean isRestocking;
     private int changeInStock;
     private int year;
-    private int month;
-    private int date;
 
-    public MedicineUsage() {
-
+    public boolean isRestocking() {
+        return isRestocking;
     }
 
-    public MedicineUsage(int medicineId, int typicalStock, int hospitalId, boolean isRestocking, int changeInStock, int year, int month, int date) {
-        this.medicineId = medicineId;
-        this.typicalStock = typicalStock;
-        this.hospitalId = hospitalId;
-        this.isRestocking = isRestocking;
-        this.changeInStock = changeInStock;
-        this.year = year;
-        this.month = month;
-        this.date = date;
-    }
-
-    public int getMedicineId() {
-        return medicineId;
-    }
-
-    public void setMedicineId(int medicineId) {
-        this.medicineId = medicineId;
+    public void setRestocking(boolean restocking) {
+        isRestocking = restocking;
     }
 
     public int getTypicalStock() {
@@ -51,7 +33,34 @@ public class MedicineUsage {
         this.typicalStock = typicalStock;
     }
 
-    public int getHospitalId() {
+    private int month;
+    private int day;
+    private int typicalStock;
+
+    public MedicineUsage() {
+
+    }
+
+    public MedicineUsage(long medicineId, long hospitalId, boolean isRestocking, int changeInStock, int year, int month, int day, int typicalStock) {
+        this.medicineId = medicineId;
+        this.hospitalId = hospitalId;
+        this.isRestocking = isRestocking;
+        this.changeInStock = changeInStock;
+        this.year = year;
+        this.month = month;
+        this.day = day;
+        this.typicalStock = typicalStock;
+    }
+
+    public long getMedicineId() {
+        return medicineId;
+    }
+
+    public void setMedicineId(int medicineId) {
+        this.medicineId = medicineId;
+    }
+
+    public long getHospitalId() {
         return hospitalId;
     }
 
@@ -91,25 +100,24 @@ public class MedicineUsage {
         this.month = month;
     }
 
-    public int getDate() {
-        return date;
+    public int getDay() {
+        return day;
     }
 
-    public void setDate(int date) {
-        this.date = date;
+    public void setDay(int date) {
+        this.day = date;
     }
 
     @Override
     public String toString() {
         return "MedicineUsage{" +
                 "medicineId=" + medicineId +
-                ", typicalStock=" + typicalStock +
                 ", hospitalId=" + hospitalId +
                 ", isRestocking=" + isRestocking +
                 ", changeInStock=" + changeInStock +
                 ", year=" + year +
                 ", month=" + month +
-                ", date=" + date +
+                ", date=" + day +
                 '}';
     }
 }

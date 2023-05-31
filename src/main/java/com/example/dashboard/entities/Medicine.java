@@ -11,14 +11,24 @@ public class Medicine {
 
     private String medicineName;
     private String genericName;
-    private int quantity;
     private String manufacturer;
+    private int typicalStock;
     private String dosageForm;
     private boolean prescriptionRequired;
     private String description;
 
     public Medicine() {
 
+    }
+
+    public Medicine(String medicineName, String genericName, String manufacturer, int typicalStock, String dosageForm, boolean prescriptionRequired, String description) {
+        this.medicineName = medicineName;
+        this.genericName = genericName;
+        this.manufacturer = manufacturer;
+        this.typicalStock = typicalStock;
+        this.dosageForm = dosageForm;
+        this.prescriptionRequired = prescriptionRequired;
+        this.description = description;
     }
 
     public String getMedicineName() {
@@ -37,13 +47,6 @@ public class Medicine {
         this.genericName = genericName;
     }
 
-    public int getQuantity() {
-        return quantity;
-    }
-
-    public void setQuantity(int quantity) {
-        this.quantity = quantity;
-    }
 
     public String getManufacturer() {
         return manufacturer;
@@ -77,14 +80,12 @@ public class Medicine {
         this.description = description;
     }
 
-    public Medicine(String medicineName, String genericName, int quantity, String manufacturer, String dosageForm, boolean prescriptionRequired, String description) {
-        this.medicineName = medicineName;
-        this.genericName = genericName;
-        this.quantity = quantity;
-        this.manufacturer = manufacturer;
-        this.dosageForm = dosageForm;
-        this.prescriptionRequired = prescriptionRequired;
-        this.description = description;
+    public int getTypicalStock() {
+        return typicalStock;
+    }
+
+    public void setTypicalStock(int typicalStock) {
+        this.typicalStock = typicalStock;
     }
 
     public Long getId() {

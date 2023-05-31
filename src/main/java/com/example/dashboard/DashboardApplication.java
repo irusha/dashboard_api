@@ -1,9 +1,6 @@
 package com.example.dashboard;
 
-import com.example.dashboard.entities.Hospital;
-import com.example.dashboard.entities.HospitalPatients;
-import com.example.dashboard.entities.Medicine;
-import com.example.dashboard.entities.MedicineInHospital;
+import com.example.dashboard.entities.*;
 import com.example.dashboard.repositories.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
@@ -16,7 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.stream.Stream;
+import java.util.stream.Collectors;
 
 @SpringBootApplication
 @RestController
@@ -38,12 +35,20 @@ public class DashboardApplication {
     @Autowired
     private final HospitalPatientsRepository hospitalPatientsRepository;
 
-    public DashboardApplication(UserRepository userRepository, MedicineRepository medicineRepository, MedicineInHospitalRepository medicineInHospitalRepository, HospitalRepository hospitalRepository, HospitalPatientsRepository hospitalPatientsRepository) {
+    @Autowired
+    private final MedicineUsageRepository medicineUsageRepository;
+
+    @Autowired
+    private final MedicineStockRepository medicineStockRepository;
+
+    public DashboardApplication(UserRepository userRepository, MedicineRepository medicineRepository, MedicineInHospitalRepository medicineInHospitalRepository, HospitalRepository hospitalRepository, HospitalPatientsRepository hospitalPatientsRepository, MedicineUsageRepository medicineUsageRepository, MedicineStockRepository medicineStockRepository) {
         this.userRepository = userRepository;
         this.medicineRepository = medicineRepository;
         this.medicineInHospitalRepository = medicineInHospitalRepository;
         this.hospitalRepository = hospitalRepository;
         this.hospitalPatientsRepository = hospitalPatientsRepository;
+        this.medicineUsageRepository = medicineUsageRepository;
+        this.medicineStockRepository = medicineStockRepository;
     }
 
     public static void main(String[] args) {
@@ -166,10 +171,10 @@ public class DashboardApplication {
     }
 
     @GetMapping("api/hospitals")
-    public List<Map<String, String>> hospitals () {
+    public List<Map<String, String>> hospitals() {
         List<Map<String, String>> retVal = new ArrayList<>();
         Iterable<Hospital> hospitals = hospitalRepository.findAll();
-        for (Hospital hospital: hospitals) {
+        for (Hospital hospital : hospitals) {
             Map<String, String> tempVal = new HashMap<>();
             tempVal.put("hospitalName", hospital.getName());
             tempVal.put("hospitalId", String.valueOf(hospital.getId()));
@@ -184,5 +189,191 @@ public class DashboardApplication {
         return "";
     }
 
+    public Map<Long, Double> getFirstThree(Map<Long, Double> medicinePercentages) {
+        List<Map.Entry<Long, Double>> first3Values = medicinePercentages.entrySet().stream()
+                .limit(3)
+                .collect(Collectors.toList());
+
+        Map<Long, Double> retVal = new HashMap<>();
+
+        for (Map.Entry<Long, Double> entry : first3Values) {
+            retVal.put(entry.getKey(), entry.getValue());
+        }
+        return retVal;
+    }
+
+    private int[] getPreviousMonthAndYear(int month, int year) {
+        int[] retVal = new int[2];
+        int prevMonth = month - 1;
+        int prevYear = year;
+        if (prevMonth == 0) {
+            prevMonth = 12;
+            prevYear = year - 1;
+        }
+        retVal[0] = prevMonth;
+        retVal[1] = prevYear;
+
+        return retVal;
+    }
+
+    @GetMapping("api/demanded")
+    public Map<String, Map<String, Integer>> getDemandedMedicines(@RequestParam(value = "hospitalId", required = false) Long hospitalId, @RequestParam("year") int year, @RequestParam("month") int month) {
+        Map<String, Map<String, Integer>> retVal = new HashMap<>();
+
+        int prevMonth = month;
+        int prevYear = year;
+
+        int numberOfPrevMonths = 3;
+
+        int[] years = new int[numberOfPrevMonths];
+        int[] months = new int[numberOfPrevMonths];
+
+        for (int i = 0; i < numberOfPrevMonths; i++) {
+            int tempPrevMonth = getPreviousMonthAndYear(prevMonth, prevYear)[0];
+            int tempPrevYear = getPreviousMonthAndYear(prevMonth, prevYear)[1];
+
+            years[i] = tempPrevYear;
+            months[i] = tempPrevMonth;
+            prevMonth = tempPrevMonth;
+            prevYear = tempPrevYear;
+
+        }
+
+        if (hospitalId != null) {
+            Map<Long, Double> medicinePercentages = new HashMap<>();
+
+            for (int i = 0; i < numberOfPrevMonths; i++) {
+                for (Map.Entry<Long, Double> entry : getRestockPercentagesForMonth(years[i], months[i], hospitalId).entrySet()) {
+                    long medicineId = entry.getKey();
+                    double percentage = entry.getValue();
+                    double prevPercentage = medicinePercentages.get(medicineId) == null ? 0 : medicinePercentages.get(medicineId);
+                    medicinePercentages.put(medicineId, prevPercentage + percentage);
+                }
+            }
+
+            Map<Long, Double> demandedMedicines = getFirstThree(sortByValue(medicinePercentages));
+            for (int i = 0; i < numberOfPrevMonths; i++) {
+                Map<Long, Double> medicineDemand = getRestockPercentagesForMonth(years[i], months[i], hospitalId);
+                Map<String, Integer> medicineUsage = new HashMap<>();
+                for (Map.Entry<Long, Double> entry : demandedMedicines.entrySet()) {
+                    long medicineId = entry.getKey();
+                    String medicineName = medicineRepository.findById(medicineId).get().getMedicineName();
+                    medicineUsage.put(medicineName, (int) Math.round(medicineDemand.get(medicineId) == null ? 0 : medicineDemand.get(medicineId)));
+                }
+                retVal.put(getMonthName(months[i]), medicineUsage);
+            }
+        }
+
+        else {
+            Map<Long, Double> medicinePercentages = new HashMap<>();
+
+        }
+
+        return retVal;
+    }
+
+    public String getMonthName(int month) {
+        String monthName = "";
+        switch (month) {
+            case 1:
+                monthName = "January";
+                break;
+            case 2:
+                monthName = "February";
+                break;
+            case 3:
+                monthName = "March";
+                break;
+            case 4:
+                monthName = "April";
+                break;
+            case 5:
+                monthName = "May";
+                break;
+            case 6:
+                monthName = "June";
+                break;
+            case 7:
+                monthName = "July";
+                break;
+            case 8:
+                monthName = "August";
+                break;
+            case 9:
+                monthName = "September";
+                break;
+            case 10:
+                monthName = "October";
+                break;
+            case 11:
+                monthName = "November";
+                break;
+            case 12:
+                monthName = "December";
+        }
+        return monthName;
+    }
+
+    public Map<Long, Double> getRestockPercentagesForMonth(int year, int month, long hospitalId) {
+        medicineUsageRepository.findAllByHospitalIdAndYearAndMonth(hospitalId, year, month);
+        Map<Long, Double> medicinePercentages = new HashMap<>();
+
+        for (MedicineUsage medicineUsage : medicineUsageRepository.findAllByHospitalIdAndYearAndMonth(hospitalId, year, month)) {
+            long medicineId = medicineUsage.getMedicineId();
+            double percentage = (medicineUsage.getChangeInStock() / (double) medicineUsage.getTypicalStock()) * 100;
+            double prevPercentage = medicinePercentages.get(medicineId) == null ? 0 : medicinePercentages.get(medicineId);
+            medicinePercentages.put(medicineId, prevPercentage + percentage);
+        }
+        return medicinePercentages;
+    }
+
+    //sort Map<Long, Double> by value
+    public static <K, V extends Comparable<? super V>> Map<K, V> sortByValue(Map<K, V> map) {
+        List<Map.Entry<K, V>> list = new ArrayList<>(map.entrySet());
+
+        list.sort(Map.Entry.comparingByValue(Comparator.reverseOrder()));
+
+        Map<K, V> result = new LinkedHashMap<>();
+
+        for (Map.Entry<K, V> entry : list) {
+            result.put(entry.getKey(), entry.getValue());
+        }
+
+        return result;
+    }
+
+    @GetMapping("api/feedData")
+    public String restockData(@RequestParam("month") int month) {
+        Iterable<Hospital> hospitals = hospitalRepository.findAll();
+
+        for (Hospital hospital : hospitals) {
+            long hospitalId = hospital.getId();
+            // select 3 - 5 random medicines and iterate over each medicine
+            int randomMedicineCount = (int) (Math.random() * 10) + 5;
+            List<Medicine> randomMedicines = new ArrayList<>();
+            for (int i = 0; i < randomMedicineCount; i++) {
+                int randomMedicineIndex = (int) (Math.random() * 78) + 10;
+                randomMedicines.add(medicineRepository.getById(randomMedicineIndex));
+            }
+
+            for (Medicine medicine : randomMedicines) {
+                long medicineId = medicine.getId();
+                // select 3 - 5 random dates and iterate over each date
+                int randomDateCount = (int) (Math.random() * 2) + 1;
+                for (int i = 0; i < randomDateCount; i++) {
+                    int randomDay = (int) (Math.random() * 28) + 1;
+                    int typicalStock = medicine.getTypicalStock();
+                    int randomQuantity = (int) (Math.random() * typicalStock);
+
+                    MedicineUsage medicineUsage = new MedicineUsage(medicineId, hospitalId, true, randomQuantity, 2023, month, randomDay, typicalStock);
+                    medicineUsageRepository.save(medicineUsage);
+
+
+                }
+            }
+        }
+        return "success";
+    }
 }
+
 

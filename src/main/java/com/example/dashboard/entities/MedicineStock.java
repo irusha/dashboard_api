@@ -12,8 +12,8 @@ public class MedicineStock {
     private Long id;
 
     //create a primary key, medicineId, hospitalId, currentStock and typicalStock
-    private int medicineId;
-    private int hospitalId;
+    private long medicineId;
+    private long hospitalId;
     private int currentStock;
     private int typicalStock;
 
@@ -21,14 +21,14 @@ public class MedicineStock {
 
     }
 
-    public MedicineStock(int medicineId, int hospitalId, int currentStock, int typicalStock) {
+    public MedicineStock(long medicineId, long hospitalId, int currentStock, int typicalStock) {
         this.medicineId = medicineId;
         this.hospitalId = hospitalId;
         this.currentStock = currentStock;
         this.typicalStock = typicalStock;
     }
 
-    public int getMedicineId() {
+    public long getMedicineId() {
         return medicineId;
     }
 
@@ -36,7 +36,7 @@ public class MedicineStock {
         this.medicineId = medicineId;
     }
 
-    public int getHospitalId() {
+    public long getHospitalId() {
         return hospitalId;
     }
 
