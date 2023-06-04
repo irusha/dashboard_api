@@ -113,8 +113,6 @@ public class DashboardApplication {
                 count++;
             }
 
-            System.out.println(json);
-            System.out.println(sortedMedicineList);
             parentJson.put("pharmacyData", json);
 
         }
@@ -218,7 +216,7 @@ public class DashboardApplication {
 
     @GetMapping("api/demanded")
     public Map<String, Map<String, Integer>> getDemandedMedicines(@RequestParam(value = "hospitalId", required = false) Long hospitalId, @RequestParam("year") int year, @RequestParam("month") int month) {
-        Map<String, Map<String, Integer>> retVal = new HashMap<>();
+        Map<String, Map<String, Integer>> retVal = new LinkedHashMap<>();
 
         int prevMonth = month;
         int prevYear = year;
@@ -227,6 +225,8 @@ public class DashboardApplication {
 
         int[] years = new int[numberOfPrevMonths];
         int[] months = new int[numberOfPrevMonths];
+
+
 
         for (int i = 0; i < numberOfPrevMonths; i++) {
             int tempPrevMonth = getPreviousMonthAndYear(prevMonth, prevYear)[0];
@@ -237,6 +237,19 @@ public class DashboardApplication {
             prevMonth = tempPrevMonth;
             prevYear = tempPrevYear;
 
+        }
+
+        //reverse months array
+        for (int i = 0; i < months.length / 2; i++) {
+            int temp = months[i];
+            months[i] = months[months.length - i - 1];
+            months[months.length - i - 1] = temp;
+        }
+
+        for (int i = 0; i < years.length / 2; i++) {
+            int temp = years[i];
+            years[i] = years[years.length - i - 1];
+            years[years.length - i - 1] = temp;
         }
 
         if (hospitalId != null) {
@@ -254,7 +267,7 @@ public class DashboardApplication {
             Map<Long, Double> demandedMedicines = getFirstThree(sortByValue(medicinePercentages));
             for (int i = 0; i < numberOfPrevMonths; i++) {
                 Map<Long, Double> medicineDemand = getRestockPercentagesForMonth(years[i], months[i], hospitalId);
-                Map<String, Integer> medicineUsage = new HashMap<>();
+                SortedMap<String, Integer> medicineUsage = new TreeMap<>();
                 for (Map.Entry<Long, Double> entry : demandedMedicines.entrySet()) {
                     long medicineId = entry.getKey();
                     String medicineName = medicineRepository.findById(medicineId).get().getMedicineName();
@@ -266,8 +279,31 @@ public class DashboardApplication {
 
         else {
             Map<Long, Double> medicinePercentages = new HashMap<>();
+            for (int i = 0; i < numberOfPrevMonths; i++) {
+                for (Hospital hospital: hospitalRepository.findAll()) {
+                    for (Map.Entry<Long, Double> entry : getRestockPercentagesForMonth(years[i], months[i], hospital.getId()).entrySet()) {
+                        long medicineId = entry.getKey();
+                        double percentage = entry.getValue();
+                        double prevPercentage = medicinePercentages.get(medicineId) == null ? 0 : medicinePercentages.get(medicineId);
+                        medicinePercentages.put(medicineId, prevPercentage + percentage);
+                    }
+                }
+            }
 
+            Map<Long, Double> demandedMedicines = getFirstThree(sortByValue(medicinePercentages));
+            for (int i = 0; i < numberOfPrevMonths; i++) {
+                Map<Long, Double> medicineDemand = getRestockPercentagesForMonth(years[i], months[i]);
+                Map<String, Integer> medicineUsage = new HashMap<>();
+                for (Map.Entry<Long, Double> entry : demandedMedicines.entrySet()) {
+                    long medicineId = entry.getKey();
+                    String medicineName = medicineRepository.findById(medicineId).get().getMedicineName();
+                    medicineUsage.put(medicineName, (int) Math.round(medicineDemand.get(medicineId) == null ? 0 : medicineDemand.get(medicineId)));
+                }
+                System.out.println(getMonthName(months[i]));
+                retVal.put(getMonthName(months[i]), medicineUsage);
+            }
         }
+        System.out.println(retVal);
 
         return retVal;
     }
@@ -315,10 +351,20 @@ public class DashboardApplication {
     }
 
     public Map<Long, Double> getRestockPercentagesForMonth(int year, int month, long hospitalId) {
-        medicineUsageRepository.findAllByHospitalIdAndYearAndMonth(hospitalId, year, month);
         Map<Long, Double> medicinePercentages = new HashMap<>();
 
         for (MedicineUsage medicineUsage : medicineUsageRepository.findAllByHospitalIdAndYearAndMonth(hospitalId, year, month)) {
+            long medicineId = medicineUsage.getMedicineId();
+            double percentage = (medicineUsage.getChangeInStock() / (double) medicineUsage.getTypicalStock()) * 100;
+            double prevPercentage = medicinePercentages.get(medicineId) == null ? 0 : medicinePercentages.get(medicineId);
+            medicinePercentages.put(medicineId, prevPercentage + percentage);
+        }
+        return medicinePercentages;
+    }
+
+    public Map<Long, Double> getRestockPercentagesForMonth(int year, int month) {
+        Map<Long, Double> medicinePercentages = new HashMap<>();
+        for (MedicineUsage medicineUsage : medicineUsageRepository.findByYearAndMonth(year, month)) {
             long medicineId = medicineUsage.getMedicineId();
             double percentage = (medicineUsage.getChangeInStock() / (double) medicineUsage.getTypicalStock()) * 100;
             double prevPercentage = medicinePercentages.get(medicineId) == null ? 0 : medicinePercentages.get(medicineId);
@@ -373,6 +419,72 @@ public class DashboardApplication {
             }
         }
         return "success";
+    }
+
+    @GetMapping("api/getMedicineStock")
+    public Map<String, Map<String, Integer>> getMedicineStock(@RequestParam(value = "hospitalId", required = false) Long hospitalId) {
+        Map<String, Map<String, Integer>> retVal = new HashMap<>();
+
+        if (hospitalId == null) {
+            for (MedicineStock medicineStock : medicineStockRepository.findAll()) {
+                Map<String, Integer> quantities = new HashMap<>();
+                long medicineId = medicineStock.getMedicineId();
+                String medicineName = medicineRepository.findById(medicineId).get().getMedicineName();
+                int currentStock = medicineStock.getCurrentStock();
+                int typicalStock = medicineStock.getTypicalStock();
+                quantities.put("currentStock", currentStock);
+                quantities.put("typicalStock", typicalStock);
+                retVal.put(medicineName, quantities);
+            }
+        } else {
+            for (MedicineStock medicineStock : medicineStockRepository.findAllByHospitalId(hospitalId.intValue())) {
+                Map<String, Integer> quantities = new HashMap<>();
+                long medicineId = medicineStock.getMedicineId();
+                String medicineName = medicineRepository.findById(medicineId).get().getMedicineName();
+                int currentStock = medicineStock.getCurrentStock();
+                int typicalStock = medicineStock.getTypicalStock();
+                quantities.put("currentStock", currentStock);
+                quantities.put("typicalStock", typicalStock);
+                retVal.put(medicineName, quantities);
+            }
+
+        }
+        List<Map.Entry<String, Map<String, Integer>>> entryList = new ArrayList<>(retVal.entrySet());
+
+// Sort the list using a custom comparator
+        Collections.sort(entryList, (entry1, entry2) -> {
+            Map<String, Integer> quantities1 = entry1.getValue();
+            Map<String, Integer> quantities2 = entry2.getValue();
+
+            int currentStock1 = quantities1.get("currentStock");
+            int typicalStock1 = quantities1.get("typicalStock");
+            double ratio1 = (double) currentStock1 / typicalStock1;
+
+            int currentStock2 = quantities2.get("currentStock");
+            int typicalStock2 = quantities2.get("typicalStock");
+            double ratio2 = (double) currentStock2 / typicalStock2;
+
+            return Double.compare(ratio1, ratio2); // Sort in descending order
+        });
+
+// Convert the sorted list back to a LinkedHashMap to preserve the ordering
+        LinkedHashMap<String, Map<String, Integer>> sortedRetVal = new LinkedHashMap<>();
+        for (Map.Entry<String, Map<String, Integer>> entry : entryList) {
+            sortedRetVal.put(entry.getKey(), entry.getValue());
+        }
+
+        List<Map.Entry<String, Map<String, Integer>>> first3Values = sortedRetVal.entrySet().stream()
+                .limit(5)
+                .collect(Collectors.toList());
+
+        Map<String, Map<String, Integer>> result = new HashMap<>();
+
+        for (Map.Entry<String, Map<String, Integer>> entry : first3Values) {
+            result.put(entry.getKey(), entry.getValue());
+        }
+
+
+        return result;
     }
 }
 
